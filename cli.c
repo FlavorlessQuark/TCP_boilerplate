@@ -1,30 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include "debug.h"
-
-#define VALIDATE(_return, success, err) { \
-    if (_return < 0)    \
-        DEBUG(err); \
-    else                \
-        DEBUG(success);      \
-        }
-
-# define IP "127.0.0.1"
-# define PORT 8080
-# define BUFF_SIZE 1024
+#include "tcp.h"
 
 int main() {
     int n;
     int sock;
-    struct sockaddr_in addr;
-    socklen_t addr_size;
+    struct sockaddr_in  addr;
+    WSADATA wsdata;
     char buffer[BUFF_SIZE];
 
-
-
+    #ifdef _WIN32
+        WSAStartup(MAKEWORD(2,2), &wsdata);
+    #endif
 
     memset(&addr, '\0', sizeof(addr));
     addr.sin_family = AF_INET;
@@ -42,7 +27,13 @@ int main() {
     recv(sock, buffer, sizeof(buffer), 0);
     printf("Server: %s\n", buffer);
 
-    close(sock);
+    cleanup(sock);
+    // #ifdef _WIN32
+    //     closesocket(sock);
+    //     WSACleanup();
+    // #else
+    //     close(sock);
+    // #endif
 
     return 0;
 }
