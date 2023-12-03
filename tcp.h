@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #ifdef _WIN32
  #include <WinSock2.h>
  #define _WINSOCK_DEPRECATED_NO_WARNINGS 
@@ -15,7 +16,7 @@
 
 #define VALIDATE(_return, success, err) { \
     if (_return < 0) {   \
-        DEBUG(err); \
+        DEBUG(err, errno); \
         cleanup(sock);\
         }\
     else                \
