@@ -1,12 +1,44 @@
 #include "tcp.h"
 
+#define MAX_OPEN_SOCK 5
+
+typedef struct cli_data {
+    pthread_mutex_t *mut;
+    int index;
+    pthread_attr_t *attr;
+    struct sockaddr_in *addr_data;
+    pthread_t *thread;
+    int *socks[MAX_OPEN_SOCK];
+}       cli_data;
+
+void *do_client(void *args)
+{
+    cli_data *data;
+    char buffer[BUFF_SIZE];
+    int sock;
+    int ret;
+
+    data = (cli_data *)args;
+    sock = data->socks[data->index];
+    while (1)
+    {
+        memset(buffer, '\0', sizeof(buffer));
+        ret = recv(sock, buffer, sizeof(buffer), 0);
+        if (ret != -1)
+        {
+            printf("Client: $d -> %s\n", buffer);
+        }
+    }
+
+}
+
 int main(){
 
     int sock, cli_sock;
     struct sockaddr_in serv_addr, cli_addr;
     int addr_size;
-
-    char buffer[BUFF_SIZE];
+    pthread_mutex_t mut;
+    cli_data clidata[MAX_OPEN_SOCK];
     int n;
 
     #ifdef _WIN32
@@ -19,7 +51,7 @@ int main(){
     serv_addr.sin_port = PORT;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-    VALIDATE((sock = socket(AF_INET, SOCK_STREAM, 0)), "Socket created", "Failed to create socket")
+    VALIDATE((sock = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK)), "Socket created", "Failed to create socket")
     // n = bind(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
     VALIDATE((n = bind(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))), "Bind success", "Bind fail");
     listen(sock, 5);
@@ -28,15 +60,22 @@ int main(){
     while(1){
         addr_size = sizeof(cli_addr);
         cli_sock = accept(sock, (struct sockaddr*)&cli_addr, &addr_size);
-        printf("Client connected.\n");
+        if (cli_sock != -1)
+        {
+            printf("Client connected FD %d.\n", cli_sock);
+            memset(&clidata[n], 0, sizeof(clidata[n]));
+            pthread_attr_init(&clidata[n].attr);
+            pthread_create(&clidata[n].attr, &clidata[n].thread, do_client, &clidata[n]);
+            n++;
+        }
 
-        memset(buffer, '\0', sizeof(buffer));
-        recv(cli_sock, buffer, sizeof(buffer), 0);
-        printf("Client: %s\n", buffer);
+        // memset(buffer, '\0', sizeof(buffer));
+        // recv(cli_sock, buffer, sizeof(buffer), 0);
+        // printf("Client: %s\n", buffer);
 
-        memset(buffer, '\0', sizeof(buffer));
-        strcpy(buffer, "HI from server :0");
-        send(cli_sock, buffer, strlen(buffer), 0);
+        // memset(buffer, '\0', sizeof(buffer));
+        // strcpy(buffer, "HI from server :0");
+        // send(cli_sock, buffer, strlen(buffer), 0);
 
         //cleanup(cli_sock);
 
