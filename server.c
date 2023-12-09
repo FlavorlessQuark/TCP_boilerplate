@@ -5,10 +5,11 @@
 typedef struct cli_data {
     pthread_mutex_t *mut;
     int index;
-    pthread_attr_t *attr;
+    pthread_attr_t attr;
     struct sockaddr_in *addr_data;
-    pthread_t *thread;
-    int *socks[MAX_OPEN_SOCK];
+    pthread_t thread;
+    // int *socks[MAX_OPEN_SOCK];
+    int sock;
 }       cli_data;
 
 void *do_client(void *args)
@@ -19,14 +20,14 @@ void *do_client(void *args)
     int ret;
 
     data = (cli_data *)args;
-    sock = data->socks[data->index];
+    // sock = data->socks[data->index];
     while (1)
     {
         memset(buffer, '\0', sizeof(buffer));
-        ret = recv(sock, buffer, sizeof(buffer), 0);
-        if (ret != -1)
+        ret = recv(data->sock, buffer, sizeof(buffer), 0);
+        if (ret > 0)
         {
-            printf("Client: $d -> %s\n", buffer);
+            printf("Client: %d -> %s\n",data->sock, buffer);
         }
     }
 
@@ -51,12 +52,13 @@ int main(){
     serv_addr.sin_port = PORT;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
 
-    VALIDATE((sock = socket(AF_INET, SOCK_STREAM, SOCK_NONBLOCK)), "Socket created", "Failed to create socket")
+    VALIDATE((sock = socket(AF_INET, SOCK_STREAM, 0)), "Socket created", "Failed to create socket")
     // n = bind(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
     VALIDATE((n = bind(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))), "Bind success", "Bind fail");
     listen(sock, 5);
     printf("Listening...\n");
 
+    n = 0;
     while(1){
         addr_size = sizeof(cli_addr);
         cli_sock = accept(sock, (struct sockaddr*)&cli_addr, &addr_size);
@@ -64,8 +66,9 @@ int main(){
         {
             printf("Client connected FD %d.\n", cli_sock);
             memset(&clidata[n], 0, sizeof(clidata[n]));
+            clidata[n].sock = cli_sock;
             pthread_attr_init(&clidata[n].attr);
-            pthread_create(&clidata[n].attr, &clidata[n].thread, do_client, &clidata[n]);
+            pthread_create(&clidata[n].thread, &clidata[n].attr, do_client, &clidata[n]);
             n++;
         }
 
